@@ -9,10 +9,17 @@ A custom Google Chrome/Microsoft Edge extension developed to automate the extrac
 * **Custom DOM Rendering:** Dynamically reconstructs the College Board JSON payloads into a clean, printable HTML/CSS format, systematically removing visually redundant elements (like graph accessibility descriptions) and formatting student-produced response fields.
 
 ## Features
-* Batch export up to 100 questions per PDF.
+* Customize batch size to determine how many questions are grouped into each PDF.
+* Export a small sample size first to preview formatting before committing to a bulk download.
+* Dynamic Count button to calculate the total number of questions matching your selected difficulty and section.
 * Filter questions by Subject (Math / Reading & Writing), Difficulty (Easy, Medium, Hard), and Domain (Algebra, Advanced Math, etc.).
 * Toggle inclusion of answer keys and rationales.
 * Option to filter for only currently active/live questions.
+
+## Technologies Used
+* **Languages:** JavaScript, HTML, CSS
+* **APIs:** Chrome Extensions API (Manifest V3), Chrome Debugger API (`chrome.debugger`), Chrome WebRequest API (`chrome.webRequest`)
+* **Format:** JSON parsing and DOM manipulation
 
 ## Installation (Developer Mode)
 1. Clone or download this repository.
@@ -23,10 +30,13 @@ A custom Google Chrome/Microsoft Edge extension developed to automate the extrac
 
 ## Usage
 1. Log in to your College Board account and navigate to `https://mypractice.collegeboard.org/questionbank/search`.
-2. Apply a filter or refresh the page so the extension can intercept the session authentication tokens.
-3. Open the extension popup—it will indicate "Session Captured".
-4. Select your desired subjects, domains, and difficulties.
-5. Click **Export All PDFs**. The PDFs will be automatically generated and saved to your default downloads folder.
+2. Choose your assessment, section, and domains, then click **Continue**.
+3. Apply a filter or refresh the page so the extension can intercept the session authentication tokens.
+4. Open the extension popup—it will indicate "Session Captured".
+5. Select your desired subjects, domains, and difficulties.
+6. Click **Count Questions** to see the total number of available questions matching your parameters.
+7. Configure your desired **Batch Size** (questions per PDF) and **Sample Size** (for a quick preview download).
+8. Click **Export Sample PDF** to test formatting, or **Export All PDFs** to generate the full batch. The PDFs will be automatically saved to your default downloads folder.
 
 ## Disclaimer
 This tool was built strictly for personal, offline educational purposes. Use this only with your own authenticated access and in accordance with the terms of service of your College Board account.
