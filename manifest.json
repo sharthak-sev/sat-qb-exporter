@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "SAT Question Bank Exporter",
+  "version": "0.3.0",
+  "description": "Exports no-answer SAT Student Question Bank question packets from an authenticated College Board browser session.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "debugger",
+    "downloads",
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://mypractice.collegeboard.org/*",
+    "https://digitalpractice-api.collegeboard.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SAT Question Bank Exporter"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mypractice.collegeboard.org/questionbank/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

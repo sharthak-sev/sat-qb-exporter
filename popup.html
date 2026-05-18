@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SAT Question Bank Exporter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand">
+        <div class="logo">
+          <img src="icons/icon-128.png" alt="SAT QB Exporter" width="32" height="32">
+        </div>
+        <div>
+          <h1>SAT QB Exporter</h1>
+          <div class="auth-row">
+            <span class="status-dot" id="statusDot"></span>
+            <p id="authStatus">Checking session…</p>
+          </div>
+        </div>
+      </div>
+      <button id="refreshStatus" type="button" title="Refresh status" class="icon-btn">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1.5 8a6.5 6.5 0 0 1 11.48-4.17M14.5 8a6.5 6.5 0 0 1-11.48 4.17"/>
+          <polyline points="13 1 13 4.5 9.5 4.5"/>
+          <polyline points="3 15 3 11.5 6.5 11.5"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="section-badge" id="sectionBadge">
+      <span class="badge-dot"></span>
+      <span id="sectionLabel">No section detected yet</span>
+    </div>
+
+    <section id="notice" class="notice" hidden></section>
+
+    <form id="exportForm">
+      <div class="card">
+        <fieldset>
+          <legend>Difficulty</legend>
+          <div class="checks difficulty-checks">
+            <label class="check-label">
+              <input type="checkbox" name="difficulty" value="E">
+              <span class="custom-check"></span>
+              <span class="check-text">Easy</span>
+            </label>
+            <label class="check-label">
+              <input type="checkbox" name="difficulty" value="M" checked>
+              <span class="custom-check"></span>
+              <span class="check-text">Medium</span>
+            </label>
+            <label class="check-label">
+              <input type="checkbox" name="difficulty" value="H" checked>
+              <span class="custom-check"></span>
+              <span class="check-text">Hard</span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="card">
+        <fieldset>
+          <legend>Export Mode</legend>
+          <div class="checks">
+            <label class="check-label radio-label">
+              <input type="radio" name="answerMode" value="no-answers" checked>
+              <span class="custom-radio"></span>
+              <span class="check-text">No correct answers or explanations</span>
+            </label>
+            <label class="check-label radio-label">
+              <input type="radio" name="answerMode" value="with-answers">
+              <span class="custom-radio"></span>
+              <span class="check-text">With correct answers and explanations</span>
+            </label>
+            <label class="check-label radio-label">
+              <input type="radio" name="answerMode" value="no-choices">
+              <span class="custom-radio"></span>
+              <span class="check-text">Without answers or headers</span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="card">
+        <label class="toggle-label">
+          <div class="toggle-wrap">
+            <input id="excludeActive" type="checkbox">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+          <div class="toggle-text">
+            <span class="toggle-title">Exclude active questions</span>
+            <small>Turn on to remove currently active questions</small>
+          </div>
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <label class="field-label">
+            <span class="label-text">Batch size</span>
+            <input id="batchSize" type="number" min="1" max="250" inputmode="numeric" value="100">
+          </label>
+          <label class="field-label">
+            <span class="label-text">Sample size</span>
+            <input id="sampleSize" type="number" min="1" max="50" inputmode="numeric" value="10">
+          </label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="countQuestions" type="button" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 4.5v5M4.5 7h5"/></svg>
+          Count
+        </button>
+        <button id="exportSample" type="button" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 2v7.5M4 7l3 3 3-3M2.5 11.5h9"/></svg>
+          Sample
+        </button>
+        <button id="exportAll" type="button" class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 2v7.5M4 7l3 3 3-3M2.5 11.5h9"/></svg>
+          Export All
+        </button>
+      </div>
+    </form>
+
+    <section class="status-panel">
+      <div class="count-display" id="selectedCount">No count yet</div>
+      <div class="progress-wrap">
+        <progress id="progress" value="0" max="1"></progress>
+      </div>
+      <div class="progress-label" id="progressText">Idle</div>
+      <ul id="downloads"></ul>
+    </section>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
