@@ -91,10 +91,12 @@ function startJob(type) {
       activePort.disconnect();
       activePort = null;
     }
+    if (message.type === "pdfGenerated") {
+      appendDownload(message.filename);
+    }
     if (message.type === "done") {
       selectedCount.textContent = `${message.count} questions exported`;
       setProgress(1, message.message || "Done");
-      renderDownloads(message.downloads || []);
       setWorking(false);
       refreshStatus();
       activePort.disconnect();
@@ -147,13 +149,10 @@ function setProgress(value, text) {
   progressText.textContent = text;
 }
 
-function renderDownloads(downloads) {
-  downloadsEl.textContent = "";
-  for (const download of downloads) {
-    const item = document.createElement("li");
-    item.textContent = download.filename;
-    downloadsEl.append(item);
-  }
+function appendDownload(filename) {
+  const item = document.createElement("li");
+  item.textContent = `✓ ${filename}`;
+  downloadsEl.append(item);
 }
 
 function showNotice(text) {

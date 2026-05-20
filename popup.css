@@ -251,6 +251,13 @@ legend {
   text-transform: uppercase;
 }
 
+.field-hint {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* ── Checkboxes ── */
 
 .checks {

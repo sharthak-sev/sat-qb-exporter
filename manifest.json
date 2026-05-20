@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SAT Question Bank Exporter",
-  "version": "0.3.0",
+  "version": "0.4.2",
   "description": "Exports no-answer SAT Student Question Bank question packets from an authenticated College Board browser session.",
   "icons": {
     "16": "icons/icon-16.png",
