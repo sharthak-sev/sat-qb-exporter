@@ -56,7 +56,9 @@ Chrome may show a notification while the extension is debugging a temporary prin
 
 ## Support This Project
 
-If you found this tool helpful for your SAT prep, consider buying me a coffee! ☕
+If this tool saves you time, consider buying me a coffee! ☕
+
+<img src="icons/qr.png" alt="Buy me a coffee QR" width="250" style="border-radius: 8px; border: 1px solid #ddd; margin: 10px 0;">
 
 **UPI ID**: `sharthak-jaiswal@fam`
 
