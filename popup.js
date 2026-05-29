@@ -11,6 +11,8 @@ const countQuestionsBtn = document.querySelector("#countQuestions");
 const exportSampleBtn = document.querySelector("#exportSample");
 const exportAllBtn = document.querySelector("#exportAll");
 const exportInteractiveBtn = document.querySelector("#exportInteractive");
+const supportBtn = document.querySelector("#supportBtn");
+const supportSection = document.querySelector("#supportSection");
 const selectedCount = document.querySelector("#selectedCount");
 const progress = document.querySelector("#progress");
 const progressText = document.querySelector("#progressText");
@@ -24,6 +26,18 @@ function init() {
   exportSampleBtn.addEventListener("click", () => startJob("exportSample"));
   exportAllBtn.addEventListener("click", () => startJob("exportAll"));
   exportInteractiveBtn.addEventListener("click", () => startJob("exportInteractiveTest"));
+  supportBtn.addEventListener("click", () => {
+    supportSection.style.display = "flex";
+    supportSection.scrollIntoView({ behavior: "smooth", block: "end" });
+  });
+
+  const closeSupportBtn = document.querySelector("#closeSupportBtn");
+  if (closeSupportBtn) {
+    closeSupportBtn.addEventListener("click", () => {
+      supportSection.style.display = "none";
+    });
+  }
+
   refreshStatus();
 }
 

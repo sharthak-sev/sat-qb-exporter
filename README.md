@@ -1,6 +1,8 @@
 # SAT Question Bank Exporter
 
-Local unpacked Chrome/Edge extension for exporting SAT Student Question Bank question packets from an authenticated College Board session.
+> **Disclaimer**: This project is a personal educational tool and is **not affiliated with, endorsed by, or associated with College Board**. SAT® is a trademark registered by the College Board, which is not affiliated with, and does not endorse, this product. This tool does not distribute, contain, or host any College Board content. It is designed solely to help users interact with their own authenticated data for personal study purposes.
+
+Local unpacked Chrome/Edge extension for saving your own practice data from your authenticated College Board session into convenient local formats.
 
 ## Install
 
@@ -14,11 +16,11 @@ The extension now asks for Chrome's `debugger` permission so it can call Chrome'
 ## Use
 
 1. Log in to `https://mypractice.collegeboard.org/questionbank/search`.
-2. After the extension is loaded, refresh the question bank page or change a filter so the page makes a normal API request.
+2. After the extension is loaded, refresh the question bank page or change a filter so the extension can read the data stream.
 3. Open the extension popup. It should show that the session was captured.
 4. Leave the defaults for Math + Medium + Hard + all matching questions, or adjust section/domains/difficulties.
 5. Click **Count Questions**, then **Export Sample PDF**, then **Export All PDFs**.
-6. Click **Export as Interactive Test** to save a `.sat-test` file for the standalone practice app in `../sat-test-app`.
+6. Click **Export as Interactive Test** to save a `.sat-test` file for your personal use in the standalone practice app in `../sat-test-app`.
 
 Defaults:
 
@@ -50,6 +52,14 @@ The exporter creates PDFs named like:
 
 Chrome may show a notification while the extension is debugging a temporary print tab. That is expected during automatic PDF creation.
 
-## Notes
+- Use this only with your own authenticated access and in line with the terms that apply to your College Board account. Do not distribute exported materials.
 
-- Use this only with your own authenticated access and in line with the terms that apply to your College Board account.
+## Support This Project
+
+If you found this tool helpful for your SAT prep, consider buying me a coffee! ☕
+
+**UPI ID**: `sharthak-jaiswal@fam`
+
+## License
+
+This project is open-sourced under the [MIT License](LICENSE). It is provided "AS IS" without warranty of any kind.

@@ -710,3 +710,40 @@ form:has(button:disabled) .actions {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* ── Support Card ── */
+
+.support-card {
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 12px 14px;
+  margin-top: 4px;
+  transition: border-color var(--transition-fast);
+}
+
+.support-card:hover {
+  border-color: var(--border-medium);
+}
+
+.support-card span {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.support-card code {
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--accent-text);
+  font-family: monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  user-select: all;
+  cursor: copy;
+}
+
