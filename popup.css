@@ -573,6 +573,25 @@ input[type="number"]:focus {
   transform: scale(0.97);
 }
 
+.btn-accent {
+  background: linear-gradient(135deg, #0ea5e9, #14b8a6);
+  box-shadow: var(--shadow-btn), 0 4px 16px rgba(20, 184, 166, 0.22);
+  color: var(--text-inverse);
+}
+
+.btn-accent:hover {
+  box-shadow: var(--shadow-btn), 0 6px 24px rgba(20, 184, 166, 0.28);
+  filter: brightness(1.08);
+}
+
+.btn-accent:active {
+  transform: scale(0.97);
+}
+
+.interactive-action {
+  grid-column: 1 / -1;
+}
+
 .btn:disabled {
   cursor: not-allowed;
   filter: grayscale(0.5);

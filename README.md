@@ -1,52 +1,55 @@
 # SAT Question Bank Exporter
 
-## Overview
-A custom Chromium-based browser extension developed to automate the extraction and formatting of SAT practice questions from the College Board's Student Question Bank. This tool was built to solve the tedious process of manually saving practice questions, enabling bulk export of customized PDF question packets for offline study.
+Local unpacked Chrome/Edge extension for exporting SAT Student Question Bank question packets from an authenticated College Board session.
 
-## Technical Highlights
-* **API Interception & Auth Extraction:** The extension uses `chrome.webRequest` to silently capture highly restricted `x-cb-catapult` authentication and authorization tokens from live session traffic without needing to store or manage user credentials directly.
-* **Headless PDF Generation:** Integrates directly with the Chrome Debugger API (`chrome.debugger`) to execute the `Page.printToPDF` command. A single hidden tab and debugger session is reused across all batches — only one debugger permission prompt per export, no matter how many PDFs are generated.
-* **ZIP-Bundled Export:** All generated PDFs are bundled into a single ZIP archive using a built-in ZIP creator (CRC-32 + uncompressed store). This means exactly one save dialog for the entire export — no repeated popups. Works across all Chromium browsers including Brave.
-* **Custom DOM Rendering:** Dynamically reconstructs the College Board JSON payloads into a clean, printable HTML/CSS format, systematically removing visually redundant elements (like graph accessibility descriptions) and formatting student-produced response fields.
-* **Auto Section Detection:** Automatically detects whether you're browsing Math or Reading & Writing questions by monitoring API traffic — no manual section selection needed.
+## Install
 
-## Features
-* Seamless one-click bulk export — all PDFs delivered as a single ZIP file.
-* Customize batch size to determine how many questions are grouped into each PDF (max 250 per PDF to prevent renderer overload).
-* Export a small sample size first to preview formatting before committing to a bulk download.
-* Dynamic Count button to calculate the total number of questions matching your selected difficulty and section.
-* Auto-detects subject (Math / Reading & Writing) from your current question bank page.
-* Three export modes:
-  * **No correct answers or explanations** — clean practice sheets.
-  * **With correct answers and explanations** — includes answer keys, rationales, and highlighted correct choices.
-  * **Without answers or headers** — minimal format with just question stems and choices.
-* Filter questions by Difficulty (Easy, Medium, Hard).
-* Option to exclude currently active/live questions.
+1. Open `chrome://extensions` or `edge://extensions`.
+2. Turn on Developer mode.
+3. Choose **Load unpacked**.
+4. Select the downloaded extension folder.
 
-## Technologies Used
-* **Languages:** JavaScript, HTML, CSS
-* **APIs:** Chrome Extensions API (Manifest V3), Chrome Debugger API (`chrome.debugger`), Chrome WebRequest API (`chrome.webRequest`), Chrome Downloads API (`chrome.downloads`)
-* **Format:** JSON parsing, DOM manipulation, binary ZIP creation
+The extension now asks for Chrome's `debugger` permission so it can call Chrome's own `Page.printToPDF` command and save PDF batches without the print dialog.
 
-## Installation (Developer Mode)
-1. Clone or download this repository.
-2. Open your Chromium-based browser and navigate to `chrome://extensions`, `edge://extensions`, or `brave://extensions`.
-3. Enable **Developer mode**.
-4. Click **Load unpacked** and select this project folder.
-*Note: The extension requires Chrome `debugger` permissions to access the native PDF printing engine.*
+## Use
 
-## Usage
-1. Log in to your College Board account and navigate to `https://mypractice.collegeboard.org/questionbank/search`.
-2. Choose your assessment, section, and domains, then click **Continue**.
-3. Apply a filter or refresh the page so the extension can intercept the session authentication tokens.
-4. Open the extension popup — it will indicate "Session Captured" and show the detected section (Math or Reading & Writing).
-5. Select your desired difficulties and export mode.
-6. Click **Count** to see the total number of available questions matching your parameters.
-7. Configure your desired **Batch Size** (questions per PDF, max 250) and **Sample Size** (for a quick preview download).
-8. Click **Sample** to test formatting, or **Export All** to generate the full batch. A single save dialog will appear for the ZIP file containing all your PDFs.
+1. Log in to `https://mypractice.collegeboard.org/questionbank/search`.
+2. After the extension is loaded, refresh the question bank page or change a filter so the page makes a normal API request.
+3. Open the extension popup. It should show that the session was captured.
+4. Leave the defaults for Math + Medium + Hard + all matching questions, or adjust section/domains/difficulties.
+5. Click **Count Questions**, then **Export Sample PDF**, then **Export All PDFs**.
+6. Click **Export as Interactive Test** to save a `.sat-test` file for the standalone practice app in `../sat-test-app`.
 
-## Disclaimer
-This tool was built strictly for personal, offline educational purposes. Use this only with your own authenticated access and in accordance with the terms of service of your College Board account.
+Defaults:
 
-## Author
-* **Sharthak**
+- Math selected.
+- Medium and Hard checked.
+- Easy unchecked, but available.
+- **Only live/active questions** unchecked. Leave it off to include all matching questions.
+- Batch size: 100 questions per PDF.
+- No answers, no rationales, no correct-choice highlighting.
+- Graph accessibility descriptions are hidden in the visual PDF.
+- Student-produced response blanks are not printed.
+
+## Interactive Test Export
+
+The **Export as Interactive Test** button creates a `.sat-test` JSON file containing normalized Math and Reading/Writing questions when both sections are available from the authenticated session. The standalone app imports this file, stores the question bank in IndexedDB, and runs timed local practice without a backend.
+
+The `.sat-test` file includes answer keys for local scoring, so treat exported files as private study material.
+
+Open the interactive test app locally in your browser (e.g. by opening its `index.html` file).
+
+You can also serve that folder with any static file server if your browser limits IndexedDB on `file://` pages.
+
+## Output
+
+The exporter creates PDFs named like:
+
+- `sat-math-no-answers-mh-sample.pdf`
+- `sat-math-no-answers-mh-part-01-of-09.pdf`
+
+Chrome may show a notification while the extension is debugging a temporary print tab. That is expected during automatic PDF creation.
+
+## Notes
+
+- Use this only with your own authenticated access and in line with the terms that apply to your College Board account.

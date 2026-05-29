@@ -202,6 +202,11 @@ chrome.runtime.onConnect.addListener(port => {
 
     if (message?.type === "exportAll") {
       exportPdfs("all", message.options || {}, post).catch(error => postError(post, error));
+      return;
+    }
+
+    if (message?.type === "exportInteractiveTest") {
+      exportInteractiveTest(message.options || {}, post).catch(error => postError(post, error));
     }
   });
 });
@@ -399,6 +404,121 @@ async function exportPdfs(mode, options, post) {
   });
 }
 
+async function exportInteractiveTest(options, post) {
+  const auth = await getAuthOrThrow();
+  const requestedSections = ["math", "rw"];
+  const allQuestions = [];
+  const sectionSummaries = [];
+  const warnings = [];
+
+  for (let sectionIndex = 0; sectionIndex < requestedSections.length; sectionIndex += 1) {
+    const section = requestedSections[sectionIndex];
+    const normalized = normalizeOptions({ ...options, section });
+    const profile = SECTION_PROFILES[section];
+    const progressBase = sectionIndex === 0 ? 0.04 : 0.5;
+
+    post({
+      type: "progress",
+      phase: "interactive-metadata",
+      value: progressBase,
+      message: `Loading ${profile.label} question list`
+    });
+
+    let selectedResult;
+    try {
+      selectedResult = await selectQuestions(auth, normalized, post, section);
+    } catch (error) {
+      warnings.push(`${profile.label}: ${error.message}`);
+      continue;
+    }
+
+    post({
+      type: "progress",
+      phase: "interactive-details",
+      value: progressBase + 0.08,
+      current: 0,
+      total: selectedResult.selected.length,
+      message: `Fetching ${selectedResult.selected.length} ${profile.label} question details`
+    });
+
+    const ids = selectedResult.selected.map(question => question.external_id);
+    const details = await fetchDetails(ids, 25, auth, progress => {
+      post({
+        type: "progress",
+        phase: "interactive-details",
+        value: progressBase + 0.08 + (progress.done / progress.total) * 0.34,
+        current: progress.done,
+        total: progress.total,
+        message: `Fetched ${progress.done} of ${progress.total} ${profile.label} questions`
+      });
+    });
+
+    const detailMap = new Map(details.map(detail => [detail.externalid || detail.external_id, detail]));
+    const rows = selectedResult.selected.map((metadata, index) => ({
+      absoluteIndex: selectedResult.indexById.get(metadata.external_id) || index + 1,
+      metadata,
+      detail: detailMap.get(metadata.external_id) || {}
+    }));
+
+    allQuestions.push(...rows.map(row => toInteractiveQuestion(row, profile, section)));
+    sectionSummaries.push({
+      subject: section,
+      label: profile.label,
+      selectedCount: rows.length,
+      metadataCount: selectedResult.metadata.length,
+      domains: profile.domains
+    });
+  }
+
+  if (!allQuestions.length) {
+    throw new Error(`No questions could be exported. ${warnings.join(" ")}`.trim());
+  }
+
+  post({
+    type: "progress",
+    phase: "interactive-save",
+    value: 0.92,
+    message: "Preparing interactive test file"
+  });
+
+  const exportFile = {
+    format: "sat-test",
+    formatVersion: 1,
+    source: {
+      name: "SAT Question Bank Exporter",
+      extensionVersion: chrome.runtime.getManifest().version
+    },
+    exportedAt: new Date().toISOString(),
+    filters: {
+      difficulties: normalizeDifficulties(options.difficulties),
+      excludeActive: options.excludeActive === true
+    },
+    sections: sectionSummaries,
+    warnings,
+    counts: countInteractiveQuestions(allQuestions),
+    questions: allQuestions
+  };
+
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(exportFile));
+  const filename = makeInteractiveFileName(exportFile);
+
+  await chrome.downloads.download({
+    url: `data:application/vnd.sat-test+json;base64,${bytesToBase64(jsonBytes)}`,
+    filename,
+    conflictAction: "uniquify",
+    saveAs: true
+  });
+
+  post({
+    type: "done",
+    value: 1,
+    count: allQuestions.length,
+    filename,
+    warnings,
+    message: `Saved ${allQuestions.length} questions to ${filename}`
+  });
+}
+
 async function getAuthOrThrow() {
   const stored = await chrome.storage.local.get(STORAGE_KEYS.auth);
   const auth = stored[STORAGE_KEYS.auth];
@@ -410,11 +530,11 @@ async function getAuthOrThrow() {
   return auth;
 }
 
-async function selectQuestions(auth, normalized, post) {
+async function selectQuestions(auth, normalized, post, forcedSection = null) {
   // Auto-detect section from captured API traffic
   const sectionStore = await chrome.storage.local.get(STORAGE_KEYS.detectedSection);
   const detected = sectionStore[STORAGE_KEYS.detectedSection];
-  const sectionKey = detected?.key && SECTION_PROFILES[detected.key] ? detected.key : normalized.section;
+  const sectionKey = forcedSection || (detected?.key && SECTION_PROFILES[detected.key] ? detected.key : normalized.section);
   const profile = SECTION_PROFILES[sectionKey];
 
   // Use all domains for the detected section
@@ -639,6 +759,46 @@ function toPrintableQuestion(row, profile) {
   };
 }
 
+function toInteractiveQuestion(row, profile, subject) {
+  const detail = row.detail || {};
+  const metadata = row.metadata || {};
+  const domain = profile.domains.find(item => item.code === metadata.primary_class_cd);
+  const options = Array.isArray(detail.answerOptions) ? detail.answerOptions : [];
+  const correctAnswers = normalizeCorrectAnswers(detail.correct_answer || detail.keys);
+  const type = detail.type || (options.length ? "mcq" : "spr");
+  const stimulus = firstHtmlField(detail, ["stimulus", "passage", "scenario"]);
+  const prompt = firstHtmlField(detail, ["stem", "body", "prompt"]);
+
+  return {
+    id: metadata.external_id || detail.externalid || detail.external_id || crypto.randomUUID(),
+    externalId: metadata.external_id || detail.externalid || detail.external_id || "",
+    questionId: metadata.questionId || "",
+    subject,
+    test: profile.label,
+    domainCode: metadata.primary_class_cd || "",
+    domain: metadata.primary_class_cd_desc || domain?.label || metadata.primary_class_cd || "",
+    skillCode: metadata.skill_cd || "",
+    skill: metadata.skill_desc || metadata.skill_cd || "",
+    difficultyCode: metadata.difficulty || "",
+    difficulty: DIFFICULTY_LABELS[metadata.difficulty] || metadata.difficulty || "",
+    scoreBand: metadata.score_band_range_cd || null,
+    type,
+    stimulus,
+    prompt,
+    answerOptions: options.map((option, index) => ({
+      id: option.id || "",
+      letter: letterAt(index),
+      content: cleanHtml(option.content || "")
+    })),
+    correctAnswers,
+    rationale: cleanHtml(detail.rationale || ""),
+    raw: {
+      metadata,
+      detail
+    }
+  };
+}
+
 function firstHtmlField(detail, keys) {
   for (const key of keys) {
     if (typeof detail[key] === "string" && detail[key].trim()) {
@@ -743,6 +903,41 @@ function uniqueStrings(values) {
   return [...new Set((Array.isArray(values) ? values : []).map(value => String(value)).filter(Boolean))];
 }
 
+function normalizeDifficulties(values) {
+  const valid = new Set(["E", "M", "H"]);
+  const difficulties = uniqueStrings(values).filter(value => valid.has(value));
+  return difficulties.length ? difficulties : ["M", "H"];
+}
+
+function normalizeCorrectAnswers(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return uniqueStrings(values).map(value => cleanHtml(value).replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+}
+
+function countInteractiveQuestions(questions) {
+  const bySubject = {};
+  const byDomain = {};
+
+  for (const question of questions) {
+    bySubject[question.subject] = (bySubject[question.subject] || 0) + 1;
+    const domainKey = `${question.subject}:${question.domainCode || "unknown"}`;
+    byDomain[domainKey] = {
+      subject: question.subject,
+      code: question.domainCode || "unknown",
+      label: question.domain || "Unknown",
+      count: (byDomain[domainKey]?.count || 0) + 1
+    };
+  }
+
+  return {
+    total: questions.length,
+    bySubject,
+    byDomain: Object.values(byDomain)
+  };
+}
+
 function dedupeBy(values, keyFn) {
   const seen = new Set();
   const result = [];
@@ -790,6 +985,16 @@ function makeZipFileName(profile, normalized, mode) {
   const answerSlugs = { "no-answers": "no-answers", "with-answers": "with-answers", "no-choices": "questions-only" };
   const answerSlug = answerSlugs[normalized.answerMode] || "no-answers";
   return `sat-${profile.fileSlug}-${answerSlug}-${difficultySlug}${mode === "sample" ? "-sample" : ""}.zip`;
+}
+
+function makeInteractiveFileName(exportFile) {
+  const stamp = new Date(exportFile.exportedAt)
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "z");
+  const mathCount = exportFile.counts.bySubject.math || 0;
+  const rwCount = exportFile.counts.bySubject.rw || 0;
+  return `sat-question-bank-interactive-math-${mathCount}-rw-${rwCount}-${stamp}.sat-test`;
 }
 
 function base64ToBytes(b64) {

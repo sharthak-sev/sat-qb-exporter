@@ -10,6 +10,7 @@ const refreshStatusBtn = document.querySelector("#refreshStatus");
 const countQuestionsBtn = document.querySelector("#countQuestions");
 const exportSampleBtn = document.querySelector("#exportSample");
 const exportAllBtn = document.querySelector("#exportAll");
+const exportInteractiveBtn = document.querySelector("#exportInteractive");
 const selectedCount = document.querySelector("#selectedCount");
 const progress = document.querySelector("#progress");
 const progressText = document.querySelector("#progressText");
@@ -22,6 +23,7 @@ function init() {
   countQuestionsBtn.addEventListener("click", () => startJob("countQuestions"));
   exportSampleBtn.addEventListener("click", () => startJob("exportSample"));
   exportAllBtn.addEventListener("click", () => startJob("exportAll"));
+  exportInteractiveBtn.addEventListener("click", () => startJob("exportInteractiveTest"));
   refreshStatus();
 }
 
@@ -77,7 +79,7 @@ function startJob(type) {
   const options = collectOptions();
 
   setWorking(true);
-  setProgress(0, type === "countQuestions" ? "Counting questions" : "Starting PDF export");
+  setProgress(0, getJobStartLabel(type));
 
   activePort = chrome.runtime.connect({ name: "sat-qb-export" });
   activePort.onMessage.addListener(message => {
@@ -96,9 +98,16 @@ function startJob(type) {
     }
     if (message.type === "done") {
       selectedCount.textContent = `${message.count} questions exported`;
+      if (message.filename) {
+        appendDownload(message.filename);
+      }
       setProgress(1, message.message || "Done");
       setWorking(false);
-      refreshStatus();
+      refreshStatus().finally(() => {
+        if (message.warnings?.length) {
+          showNotice(`Export completed with warnings: ${message.warnings.join(" ")}`);
+        }
+      });
       activePort.disconnect();
       activePort = null;
     }
@@ -131,6 +140,16 @@ function collectOptions() {
     batchSize: document.querySelector("#batchSize").value,
     sampleSize: document.querySelector("#sampleSize").value
   };
+}
+
+function getJobStartLabel(type) {
+  if (type === "countQuestions") {
+    return "Counting questions";
+  }
+  if (type === "exportInteractiveTest") {
+    return "Starting interactive test export";
+  }
+  return "Starting PDF export";
 }
 
 function hasChecked(name) {
