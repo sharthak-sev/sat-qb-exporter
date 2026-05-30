@@ -56,7 +56,7 @@ Chrome may show a notification while the extension is debugging a temporary prin
 
 ## Support This Project
 
-If you found this tool helpful for your SAT prep, consider buying me a coffee! ☕
+If you found this tool helpful for your SAT prep, consider supporting the author! ❤️
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sevrony)
 
