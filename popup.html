@@ -33,10 +33,6 @@
       </button>
     </header>
 
-    <button id="supportBtn" type="button" class="btn btn-secondary" style="width: 100%; color: #a78bfa; border-color: rgba(124, 58, 237, 0.4); margin-bottom: 8px;">
-      ☕ Buy me a coffee
-    </button>
-
     <div class="section-badge" id="sectionBadge">
       <span class="badge-dot"></span>
       <span id="sectionLabel">No section detected yet</span>
@@ -146,12 +142,15 @@
       <ul id="downloads"></ul>
     </section>
 
-    <div id="supportSection" class="support-card" style="display: none; flex-direction: column; text-align: center; position: relative;">
-      <button id="closeSupportBtn" type="button" class="icon-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; min-height: 0; padding: 0;">✕</button>
-      <span>☕ Support this project</span>
-      <img src="icons/qr.png" alt="Payment QR Code" style="width: 150px; height: 150px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border-subtle);">
-      <code title="Copy UPI ID">sharthak-jaiswal@fam</code>
-    </div>
+    <footer style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; font-size: 13px; color: var(--fg);">
+      <p style="margin-bottom: 12px; opacity: 0.8;">If this extension helped you, consider supporting it!</p>
+      <a href="https://ko-fi.com/sevrony" target="_blank" rel="noopener noreferrer">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" style="height: 32px; border-radius: 4px;">
+      </a>
+      <div style="margin-top: 12px; opacity: 0.8;">
+        <span>UPI ID: </span><code style="background: var(--bg-alt); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);">sharthak-jaiswal@fam</code>
+      </div>
+    </footer>
   </main>
   <script src="popup.js"></script>
 </body>
