@@ -63,3 +63,7 @@ If you found this tool helpful for your SAT prep, consider supporting the author
 **UPI ID**: `sharthak-jaiswal@fam`
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sevrony)
+
+## License
+
+Sevrony is released under the [MIT License](LICENSE). It is provided as-is, without warranty.
