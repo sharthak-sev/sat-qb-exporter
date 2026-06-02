@@ -58,8 +58,8 @@ Chrome may show a notification while the extension is debugging a temporary prin
 
 If you found this tool helpful for your SAT prep, consider supporting the author! ❤️
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sevrony)
-
-<img src="qr.png" alt="Payment QR Code" width="250" style="border-radius: 8px; border: 1px solid #ddd; margin: 10px 0;">
+<img src="qr.png" alt="Payment QR Code" width="220" style="border-radius: 8px; border: 1px solid #ddd; margin: 10px 0;"/>
 
 **UPI ID**: `sharthak-jaiswal@fam`
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sevrony)
