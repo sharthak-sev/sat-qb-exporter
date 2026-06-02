@@ -66,4 +66,4 @@ If you found this tool helpful for your SAT prep, consider supporting the author
 
 ## License
 
-Sevrony is released under the [MIT License](LICENSE). It is provided as-is, without warranty.
+sat-qb-exporter is released under the [MIT License](LICENSE). It is provided as-is, without warranty.
