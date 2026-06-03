@@ -43,7 +43,21 @@ function init() {
 
 async function refreshStatus() {
   try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const activeUrl = tabs[0]?.url || "";
+    
+    if (!activeUrl.includes("mypractice.collegeboard.org/questionbank/results")) {
+      authStatus.textContent = "Outside Question Bank Results";
+      statusDot.classList.remove("active");
+      updateSectionBadge(null);
+      showNotice("Please search for questions on the College Board Question Bank to use this exporter.");
+      setWorking(true);
+      refreshStatusBtn.disabled = false;
+      return;
+    }
+
     const status = await chrome.runtime.sendMessage({ type: "getStatus" });
+    setWorking(false);
     updateAuthStatus(status);
     updateSectionBadge(status.detectedSection);
   } catch (error) {
