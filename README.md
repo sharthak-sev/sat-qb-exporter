@@ -18,7 +18,7 @@ The extension now asks for Chrome's `debugger` permission so it can call Chrome'
 3. Open the extension popup. It should show that the session was captured.
 4. Leave the defaults for Math + Medium + Hard + all matching questions, or adjust section/domains/difficulties.
 5. Click **Count Questions**, then **Export Sample PDF**, then **Export All PDFs**.
-6. Click **Export as Interactive Test** to save a `.sat-test` file for the standalone practice app in `../sat-test-app`.
+6. Click **Export as Interactive Test** to save a `.sat-test` file for the standalone practice app [Sevrony](https://sharthak-sev.github.io/Sevrony).
 
 Defaults:
 
