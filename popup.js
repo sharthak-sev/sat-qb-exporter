@@ -18,6 +18,14 @@ const progress = document.querySelector("#progress");
 const progressText = document.querySelector("#progressText");
 const downloadsEl = document.querySelector("#downloads");
 
+const practiceTestCard = document.querySelector("#practiceTestCard");
+const practiceTestToggle = document.querySelector("#practiceTestToggle");
+const attemptDropdown = document.querySelector("#attemptDropdown");
+const exportPracticeBtn = document.querySelector("#exportPracticeBtn");
+const practiceTestControls = document.querySelector("#practiceTestControls");
+const qbCards = document.querySelectorAll("#exportForm .card:not(#practiceTestCard)");
+const actionsPanel = document.querySelector("#exportForm .actions");
+
 document.addEventListener("DOMContentLoaded", init);
 
 function init() {
@@ -26,6 +34,60 @@ function init() {
   exportSampleBtn.addEventListener("click", () => startJob("exportSample"));
   exportAllBtn.addEventListener("click", () => startJob("exportAll"));
   exportInteractiveBtn.addEventListener("click", () => startJob("exportInteractiveTest"));
+  
+  if (practiceTestToggle) {
+    practiceTestToggle.style.display = 'block';
+    practiceTestToggle.addEventListener("change", async (e) => {
+      if (e.target.checked) {
+        attemptDropdown.innerHTML = '<option value="">Loading attempts...</option>';
+        try {
+          const res = await chrome.runtime.sendMessage({ type: "getPracticeTestScores" });
+          if (res && res.ok && res.attempts && res.attempts.length > 0) {
+            attemptDropdown.innerHTML = '';
+            res.attempts.forEach(attempt => {
+              const opt = document.createElement("option");
+              opt.value = attempt.rosterEntryId;
+              let dateStr = "";
+              if (attempt.asmtSubmissionStartTime) {
+                const isTimestamp = typeof attempt.asmtSubmissionStartTime === "number";
+                dateStr = new Date(isTimestamp ? attempt.asmtSubmissionStartTime * 1000 : attempt.asmtSubmissionStartTime).toLocaleDateString();
+              }
+              const totalScore = attempt.totalScore?.score || attempt.totalScore || 0;
+              const scoreStr = totalScore ? `(Score: ${totalScore})` : "";
+              opt.textContent = `${attempt.displayTitle || "Practice Test"} - ${dateStr} ${scoreStr}`.trim();
+              attemptDropdown.appendChild(opt);
+            });
+            attemptDropdown.style.display = 'block';
+            exportPracticeBtn.style.display = 'block';
+            practiceTestControls.style.display = 'block';
+          } else {
+            showNotice(res?.error || "No attempts found.");
+            practiceTestToggle.checked = false;
+            attemptDropdown.style.display = 'none';
+            exportPracticeBtn.style.display = 'none';
+            practiceTestControls.style.display = 'none';
+          }
+        } catch (err) {
+          showNotice(err.message || String(err));
+          practiceTestToggle.checked = false;
+          attemptDropdown.style.display = 'none';
+          exportPracticeBtn.style.display = 'none';
+          practiceTestControls.style.display = 'none';
+        }
+      } else {
+        attemptDropdown.style.display = 'none';
+        exportPracticeBtn.style.display = 'none';
+        practiceTestControls.style.display = 'none';
+      }
+    });
+  }
+
+  if (exportPracticeBtn) {
+    exportPracticeBtn.addEventListener("click", () => {
+      startJob("exportPracticeTest");
+    });
+  }
+
   supportBtn.addEventListener("click", () => {
     supportSection.style.display = "flex";
     supportSection.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -46,12 +108,20 @@ async function refreshStatus() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     const activeUrl = tabs[0]?.url || "";
     
-    if (!activeUrl.includes("mypractice.collegeboard.org/questionbank/results")) {
-      authStatus.textContent = "Outside Question Bank Results";
+    const isQbPage = activeUrl.includes("mypractice.collegeboard.org/questionbank/results");
+    const isDetailsPage = activeUrl.includes("mypractice.collegeboard.org/details");
+    const isDashboardPage = activeUrl.includes("mypractice.collegeboard.org/dashboard");
+
+    if (!isQbPage && !isDetailsPage && !isDashboardPage) {
+      authStatus.textContent = "Outside Supported Pages";
       statusDot.classList.remove("active");
       updateSectionBadge(null);
-      showNotice("Please search for questions on the College Board Question Bank to use this exporter.");
+      showNotice("Please visit Question Bank Results, Practice Test Details, or Dashboard to use this exporter.");
       setWorking(true);
+      if (practiceTestToggle) {
+        practiceTestToggle.disabled = true;
+        practiceTestToggle.checked = false;
+      }
       refreshStatusBtn.disabled = false;
       return;
     }
@@ -59,9 +129,37 @@ async function refreshStatus() {
     const status = await chrome.runtime.sendMessage({ type: "getStatus" });
     setWorking(false);
     updateAuthStatus(status);
-    updateSectionBadge(status.detectedSection);
+    
+    if (isQbPage) {
+      updateSectionBadge(status.detectedSection);
+      showPracticeTestUi(false);
+    } else {
+      updateSectionBadge(null);
+      showPracticeTestUi(true);
+    }
   } catch (error) {
     showNotice(error.message || String(error));
+  }
+}
+
+function showPracticeTestUi(show) {
+  if (practiceTestCard) {
+    practiceTestCard.style.display = show ? "block" : "none";
+  }
+  if (practiceTestToggle) {
+    practiceTestToggle.style.display = show ? "block" : "none";
+    practiceTestToggle.disabled = false;
+  }
+  if (!show) {
+    if (attemptDropdown) attemptDropdown.style.display = "none";
+    if (exportPracticeBtn) exportPracticeBtn.style.display = "none";
+    if (practiceTestControls) practiceTestControls.style.display = "none";
+  }
+  qbCards.forEach(card => {
+    card.style.display = show ? "none" : "block";
+  });
+  if (actionsPanel) {
+    actionsPanel.style.display = show ? "none" : "grid";
   }
 }
 
@@ -91,8 +189,8 @@ function updateSectionBadge(detected) {
   sectionLabel.textContent = `${labels[detected.key] || detected.key} detected`;
 }
 
-function startJob(type) {
-  if (!hasChecked("difficulty")) {
+async function startJob(type) {
+  if (type !== "exportPracticeTest" && !hasChecked("difficulty")) {
     showNotice("Select at least one difficulty.");
     return;
   }
@@ -104,10 +202,38 @@ function startJob(type) {
   downloadsEl.textContent = "";
   hideNotice();
 
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const activeUrl = tabs[0]?.url || "";
+
+  let rosterEntryId = null;
+  let title = "SAT Practice Test";
+  if (type === "exportPracticeTest") {
+    rosterEntryId = attemptDropdown.value;
+    const selectedOption = attemptDropdown.options[attemptDropdown.selectedIndex];
+    if (selectedOption) {
+      title = selectedOption.text;
+    }
+    if (!rosterEntryId) {
+      const match = activeUrl.match(/\/details\?([^#&]+)/);
+      rosterEntryId = match ? match[1] : null;
+    }
+    if (!rosterEntryId) {
+      showNotice("Please select a practice test attempt.");
+      if (practiceTestToggle) {
+        practiceTestToggle.checked = false;
+        practiceTestControls.style.display = 'none';
+      }
+      return;
+    }
+  }
+
   const options = collectOptions();
+  options.activeUrl = activeUrl;
+  options.rosterEntryId = rosterEntryId;
+  options.title = title;
 
   setWorking(true);
-  setProgress(0, getJobStartLabel(type));
+  setProgress(0, type === "exportPracticeTest" ? "Starting practice test export" : getJobStartLabel(type));
 
   activePort = chrome.runtime.connect({ name: "sat-qb-export" });
   activePort.onMessage.addListener(message => {
@@ -125,11 +251,21 @@ function startJob(type) {
       appendDownload(message.filename);
     }
     if (message.type === "done") {
-      selectedCount.textContent = `${message.count} questions exported`;
+      if (type === "exportPracticeTest") {
+        selectedCount.textContent = "Practice test exported";
+      } else {
+        selectedCount.textContent = `${message.count} questions exported`;
+      }
       if (message.filename) {
         appendDownload(message.filename);
       }
       setProgress(1, message.message || "Done");
+
+      if (practiceTestToggle) {
+        practiceTestToggle.checked = false;
+        practiceTestControls.style.display = 'none';
+      }
+
       setWorking(false);
       refreshStatus().finally(() => {
         if (message.warnings?.length) {
@@ -142,6 +278,12 @@ function startJob(type) {
     if (message.type === "error") {
       setProgress(0, "Job failed");
       showNotice(message.message || "Job failed");
+
+      if (practiceTestToggle) {
+        practiceTestToggle.checked = false;
+        practiceTestControls.style.display = 'none';
+      }
+
       setWorking(false);
       activePort.disconnect();
       activePort = null;
@@ -151,6 +293,10 @@ function startJob(type) {
   activePort.onDisconnect.addListener(() => {
     if (countQuestionsBtn.disabled) {
       setWorking(false);
+    }
+    if (practiceTestToggle) {
+      practiceTestToggle.checked = false;
+      practiceTestControls.style.display = 'none';
     }
     activePort = null;
   });
@@ -162,6 +308,7 @@ function collectOptions() {
   const data = new FormData(form);
 
   return {
+    assessment: data.get("assessment") || "99",
     difficulties: data.getAll("difficulty"),
     answerMode: data.get("answerMode") || "no-answers",
     excludeActive: document.querySelector("#excludeActive").checked,

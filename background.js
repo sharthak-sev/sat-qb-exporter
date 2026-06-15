@@ -130,6 +130,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "getPracticeTestScores") {
+    getPracticeTestScores()
+      .then(sendResponse)
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === "exportPracticeTestData") {
+    exportPracticeTestDataDirect(message.rosterEntryId, message.title)
+      .then(res => sendResponse({ ok: true, status: "Export complete", filename: res.filename, downloadId: res.downloadId, data: res.data }))
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
   if (message?.type === "clearAuth") {
     chrome.storage.local.remove(STORAGE_KEYS.auth).then(() => {
       sendResponse({ ok: true });
@@ -207,6 +221,12 @@ chrome.runtime.onConnect.addListener(port => {
 
     if (message?.type === "exportInteractiveTest") {
       exportInteractiveTest(message.options || {}, post).catch(error => postError(post, error));
+      return;
+    }
+
+    if (message?.type === "exportPracticeTest") {
+      exportPracticeTest(message.options || {}, post).catch(error => postError(post, error));
+      return;
     }
   });
 });
@@ -460,7 +480,7 @@ async function exportInteractiveTest(options, post) {
       detail: detailMap.get(metadata.external_id) || {}
     }));
 
-    allQuestions.push(...rows.map(row => toInteractiveQuestion(row, profile, section)));
+    allQuestions.push(...rows.map(row => toInteractiveQuestion(row, profile, section, options.assessment)));
     sectionSummaries.push({
       subject: section,
       label: profile.label,
@@ -484,6 +504,7 @@ async function exportInteractiveTest(options, post) {
   const exportFile = {
     format: "sat-test",
     formatVersion: 1,
+    assessmentId: options.assessment,
     source: {
       name: "SAT Question Bank Exporter",
       extensionVersion: chrome.runtime.getManifest().version
@@ -566,17 +587,33 @@ async function selectQuestions(auth, normalized, post, forcedSection = null) {
     message: `Loading ${profile.label} question metadata`
   });
 
-  const questionResult = await fetchFirstWorking(
-    profile.tests,
-    test => apiPost("/get-questions", {
-      asmtEventId: 99,
-      test,
-      domain: domains.join(",")
-    }, auth),
-    "question test"
-  );
+  const eventId = normalized.assessment;
+  const metadata = [];
+  let questionAlias = null;
+  const errors = [];
 
-  const metadata = Array.isArray(questionResult.value) ? questionResult.value : [];
+  try {
+      const questionResult = await fetchFirstWorking(
+        profile.tests,
+        test => apiPost("/get-questions", {
+          asmtEventId: eventId,
+          test,
+          domain: domains.join(",")
+        }, auth),
+        `question test for event ${eventId}`
+      );
+      if (Array.isArray(questionResult.value)) {
+        metadata.push(...questionResult.value);
+        questionAlias = questionAlias || questionResult.alias;
+      }
+    } catch (err) {
+      errors.push(err.message);
+    }
+
+  if (metadata.length === 0) {
+    throw new Error(`Could not find working question tests. ${errors.join(" | ")}`);
+  }
+
   const liveSet = new Set(liveIds);
   const allowedDifficulties = new Set(normalized.difficulties);
   const allowedDomains = new Set(domains);
@@ -606,7 +643,7 @@ async function selectQuestions(auth, normalized, post, forcedSection = null) {
     selected,
     liveIds,
     liveAlias,
-    questionAlias: questionResult.alias,
+    questionAlias,
     indexById: new Map(selected.map((question, index) => [question.external_id, index + 1]))
   };
 }
@@ -619,8 +656,10 @@ function normalizeOptions(options) {
   const domains = uniqueStrings(options.domains).filter(domain => validDomains.has(domain));
   const difficulties = uniqueStrings(options.difficulties).filter(difficulty => validDifficulties.has(difficulty));
   const validAnswerModes = new Set(["no-answers", "with-answers", "no-choices"]);
+  const validAssessments = new Set([99, 100, 102, "99", "100", "102"]);
 
   return {
+    assessment: validAssessments.has(options.assessment) ? Number(options.assessment) : 99,
     section,
     domains: domains.length ? domains : profile.domains.map(domain => domain.code),
     difficulties: difficulties.length ? difficulties : ["M", "H"],
@@ -714,8 +753,11 @@ async function fetchDetailsChunk(ids, auth) {
 function makePrintJob({ profile, normalized, mode, part, totalParts, totalQuestions, rows }) {
   const difficultyText = normalized.difficulties.map(code => DIFFICULTY_LABELS[code] || code).join(", ");
 
+  const assessmentNames = { 99: "SAT", 100: "PSAT/NMSQT & PSAT 10", 102: "PSAT 8/9" };
+  const assessmentName = assessmentNames[normalized.assessment] || "SAT";
+
   return {
-    title: `SAT ${profile.label} Question Bank`,
+    title: `${assessmentName} ${profile.label} Question Bank`,
     subtitle: `${difficultyText} — ${ANSWER_MODE_LABELS[normalized.answerMode] || "No Answers"}`,
     answerMode: normalized.answerMode,
     meta: [
@@ -724,25 +766,26 @@ function makePrintJob({ profile, normalized, mode, part, totalParts, totalQuesti
       `Part ${part} of ${totalParts}`,
       normalized.excludeActive ? "Excluding active questions" : "All matching questions"
     ],
-    questions: rows.map(row => toPrintableQuestion(row, profile)),
+    questions: rows.map(row => toPrintableQuestion(row, profile, normalized.assessment)),
     generatedAt: new Date().toISOString(),
     mode
   };
 }
 
-function toPrintableQuestion(row, profile) {
+function toPrintableQuestion(row, profile, assessmentId) {
   const detail = row.detail || {};
   const metadata = row.metadata || {};
   const domain = profile.domains.find(item => item.code === metadata.primary_class_cd);
   const options = Array.isArray(detail.answerOptions) ? detail.answerOptions : [];
   const correctAnswers = Array.isArray(detail.correct_answer) ? detail.correct_answer : [];
+  const assessmentNames = { 99: "SAT", 100: "PSAT/NMSQT & PSAT 10", 102: "PSAT 8/9" };
 
   return {
     number: row.absoluteIndex,
     type: detail.type || "",
     externalId: metadata.external_id || detail.externalid || "",
     questionId: metadata.questionId || "",
-    assessment: "SAT",
+    assessment: assessmentNames[assessmentId] || "SAT",
     test: profile.label,
     domain: metadata.primary_class_cd_desc || domain?.label || metadata.primary_class_cd || "",
     skill: metadata.skill_desc || metadata.skill_cd || "",
@@ -759,7 +802,7 @@ function toPrintableQuestion(row, profile) {
   };
 }
 
-function toInteractiveQuestion(row, profile, subject) {
+function toInteractiveQuestion(row, profile, subject, assessmentId) {
   const detail = row.detail || {};
   const metadata = row.metadata || {};
   const domain = profile.domains.find(item => item.code === metadata.primary_class_cd);
@@ -768,9 +811,11 @@ function toInteractiveQuestion(row, profile, subject) {
   const type = detail.type || (options.length ? "mcq" : "spr");
   const stimulus = firstHtmlField(detail, ["stimulus", "passage", "scenario"]);
   const prompt = firstHtmlField(detail, ["stem", "body", "prompt"]);
+  const assessmentNames = { 99: "SAT", 100: "PSAT/NMSQT & PSAT 10", 102: "PSAT 8/9" };
 
   return {
-    id: metadata.external_id || detail.externalid || detail.external_id || crypto.randomUUID(),
+    id: crypto.randomUUID(),
+    assessment: assessmentNames[assessmentId] || "SAT",
     externalId: metadata.external_id || detail.externalid || detail.external_id || "",
     questionId: metadata.questionId || "",
     subject,
@@ -875,20 +920,11 @@ function waitForPrintReady(jobId, tabId) {
 }
 
 function makePdfFileName(profile, normalized, mode, part, totalParts) {
-  const difficultySlug = normalized.difficulties.map(code => code.toLowerCase()).join("");
-  const answerSlugs = {
-    "no-answers": "no-answers",
-    "with-answers": "with-answers",
-    "no-choices": "questions-only"
-  };
-  const answerSlug = answerSlugs[normalized.answerMode] || "no-answers";
-  const prefix = `sat-${profile.fileSlug}-${answerSlug}-${difficultySlug}`;
-
-  if (mode === "sample") {
-    return `${prefix}-sample.pdf`;
-  }
-
-  return `${prefix}-part-${pad(part)}-of-${pad(totalParts)}.pdf`;
+  const answerSlug = { "no-answers": "no-answers", "with-answers": "answers", "no-choices": "no-choices" }[normalized.answerMode];
+  const difficultySlug = normalized.difficulties.map(d => d.toLowerCase()).join("");
+  const asmtSlugs = { 99: "sat", 100: "psat10", 102: "psat8-9" };
+  const asmtSlug = asmtSlugs[normalized.assessment] || "sat";
+  return `${asmtSlug}-${profile.fileSlug}-${answerSlug}-${difficultySlug}${mode === "sample" ? "-sample" : ""}-part-${pad(part)}-of-${pad(totalParts)}.pdf`;
 }
 
 function cleanHtml(value) {
@@ -981,10 +1017,11 @@ function sleep(ms) {
 }
 
 function makeZipFileName(profile, normalized, mode) {
-  const difficultySlug = normalized.difficulties.map(c => c.toLowerCase()).join("");
-  const answerSlugs = { "no-answers": "no-answers", "with-answers": "with-answers", "no-choices": "questions-only" };
-  const answerSlug = answerSlugs[normalized.answerMode] || "no-answers";
-  return `sat-${profile.fileSlug}-${answerSlug}-${difficultySlug}${mode === "sample" ? "-sample" : ""}.zip`;
+  const answerSlug = { "no-answers": "no-answers", "with-answers": "answers", "no-choices": "no-choices" }[normalized.answerMode];
+  const difficultySlug = normalized.difficulties.map(d => d.toLowerCase()).join("");
+  const asmtSlugs = { 99: "sat", 100: "psat10", 102: "psat8-9" };
+  const asmtSlug = asmtSlugs[normalized.assessment] || "sat";
+  return `${asmtSlug}-${profile.fileSlug}-${answerSlug}-${difficultySlug}${mode === "sample" ? "-sample" : ""}.zip`;
 }
 
 function makeInteractiveFileName(exportFile) {
@@ -994,7 +1031,9 @@ function makeInteractiveFileName(exportFile) {
     .replace(/\.\d{3}Z$/, "z");
   const mathCount = exportFile.counts.bySubject.math || 0;
   const rwCount = exportFile.counts.bySubject.rw || 0;
-  return `sat-question-bank-interactive-math-${mathCount}-rw-${rwCount}-${stamp}.sat-test`;
+  const asmtSlugs = { 99: "sat", 100: "psat10", 102: "psat8-9" };
+  const asmtSlug = asmtSlugs[exportFile.assessmentId] || "sat";
+  return `${asmtSlug}-question-bank-interactive-math-${mathCount}-rw-${rwCount}-${stamp}.sat-test`;
 }
 
 function base64ToBytes(b64) {
@@ -1084,4 +1123,225 @@ function createZip(entries) {
   view.setUint32(pos + 16, cdOffset, true);
 
   return buf;
+}
+
+/* ── Practice Test Results Exporter Helpers ── */
+
+const RESULTS_API_BASE = `${DIGITAL_PRACTICE_HOST}/mspractice-testresults-prod`;
+
+async function resultsApiPost(path, body, auth) {
+  const response = await fetch(`${RESULTS_API_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "accept": "application/json, text/plain, */*",
+      "content-type": "application/json",
+      [AUTH_HEADERS.authentication]: auth.authenticationToken,
+      [AUTH_HEADERS.authorization]: auth.authorizationToken
+    },
+    body: JSON.stringify(body || {})
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    const error = new Error(`${path} failed with HTTP ${response.status}${text ? `: ${text.slice(0, 160)}` : ""}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
+function getSectionName(id) {
+  const name = String(id || "").toLowerCase();
+  if (name === "reading" || name === "rw" || name === "reading and writing" || name === "reading_and_writing") {
+    return "Reading and Writing";
+  }
+  if (name === "math") {
+    return "Math";
+  }
+  return id;
+}
+
+async function getPracticeTestScores() {
+  const auth = await getAuthOrThrow();
+  const res = await resultsApiPost("/scores", null, auth);
+  if (!res || !Array.isArray(res.scoreObjects)) {
+    throw new Error("Invalid response from scores endpoint.");
+  }
+  return { ok: true, attempts: res.scoreObjects };
+}
+
+async function exportPracticeTestDataDirect(rosterEntryId, title) {
+  const auth = await getAuthOrThrow();
+  const exportFile = await buildPracticeTestJson(rosterEntryId, title, auth);
+
+  const jsonString = JSON.stringify(exportFile, null, 2);
+  const jsonBytes = new TextEncoder().encode(jsonString);
+  const base64Data = bytesToBase64(jsonBytes);
+
+  const cleanTitle = (exportFile.displayTitle).replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const filename = `sat-practice-test-${exportFile.testId || rosterEntryId}-${cleanTitle}.json`;
+
+  const downloadId = await chrome.downloads.download({
+    url: `data:application/json;base64,${base64Data}`,
+    filename,
+    conflictAction: "uniquify",
+    saveAs: true
+  });
+
+  return { filename, downloadId, data: exportFile };
+}
+
+function getDomainLabel(code) {
+  if (!code) return "";
+  for (const profile of Object.values(SECTION_PROFILES)) {
+    const domain = profile.domains.find(d => d.code === code);
+    if (domain) return domain.label;
+  }
+  return code;
+}
+
+async function buildPracticeTestJson(rosterEntryId, title, auth) {
+  if (!rosterEntryId) {
+    throw new Error("Missing rosterEntryId for practice test export.");
+  }
+
+  const scoresResponse = await resultsApiPost("/scores", null, auth);
+  if (!scoresResponse?.scoreObjects) {
+    throw new Error("Failed to fetch practice test scores.");
+  }
+
+  const attemptScoreObj = scoresResponse.scoreObjects.find(obj => obj.rosterEntryId === rosterEntryId);
+  if (!attemptScoreObj) {
+    throw new Error(`Attempt with rosterEntryId ${rosterEntryId} not found.`);
+  }
+
+  const questionsResponse = await resultsApiPost("/questions", {
+    rosterEntryId: rosterEntryId,
+    asmtFamilyCd: 1
+  }, auth);
+
+  if (!Array.isArray(questionsResponse)) {
+    throw new Error("Failed to fetch practice test questions details.");
+  }
+
+  const sections = questionsResponse.map(sec => {
+    const sectionName = getSectionName(sec.id);
+    const questions = (sec.items || []).map(item => {
+      let choices = null;
+      if (item.answer?.choices) {
+        choices = {};
+        for (const [key, val] of Object.entries(item.answer.choices)) {
+          choices[key] = cleanHtml(val?.body || val || "");
+        }
+      }
+      const primaryCd = item.metadata?.PRIMARY_CLASS_CD || "";
+      return {
+        questionId: item.questionId || "",
+        vaultId: item.externalId || item.external_id || "",
+        displayNumber: item.displayNumber || "",
+        sequence: item.sequence !== undefined ? item.sequence : null,
+        prompt: cleanHtml(item.prompt || ""),
+        passage: (item.passage && typeof item.passage.body === "string" && item.passage.body.trim()) 
+          ? cleanHtml(item.passage.body) 
+          : null,
+        choices,
+        userAnswer: item.answer?.response || "",
+        correctAnswer: item.answer?.correctChoice || "",
+        isCorrect: item.answer?.correct === true,
+        explanation: cleanHtml(item.answer?.rationale || ""),
+        domains: {
+          primary: primaryCd,
+          primaryLabel: getDomainLabel(primaryCd),
+          secondary: item.metadata?.SECONDARY_CLASS_CD || "",
+          tertiary: item.metadata?.TERTIARY_CLASS_CD || ""
+        }
+      };
+    });
+
+    return {
+      sectionName,
+      questions
+    };
+  });
+
+  const rwScoreObj = attemptScoreObj.sectionScores?.find(s => s.tierName === "Reading and Writing" || s.sortOrder === 1) || {};
+  const mathScoreObj = attemptScoreObj.sectionScores?.find(s => s.tierName === "Math" || s.sortOrder === 2) || {};
+
+  const scores = {
+    totalScore: attemptScoreObj.totalScore?.score || attemptScoreObj.totalScore || 0,
+    readingWriting: {
+      score: rwScoreObj.score || 0,
+      correctAnswers: rwScoreObj.correctAnswers || 0,
+      incorrectAnswers: rwScoreObj.incorrectAnswers || 0,
+      omittedAnswers: rwScoreObj.omittedAnswers !== undefined ? rwScoreObj.omittedAnswers : 0,
+      totalQuestions: rwScoreObj.totalQuestions || 0
+    },
+    math: {
+      score: mathScoreObj.score || 0,
+      correctAnswers: mathScoreObj.correctAnswers || 0,
+      incorrectAnswers: mathScoreObj.incorrectAnswers || 0,
+      omittedAnswers: mathScoreObj.omittedAnswers !== undefined ? mathScoreObj.omittedAnswers : 0,
+      totalQuestions: mathScoreObj.totalQuestions || 0
+    }
+  };
+
+  let startTimeStr = new Date().toISOString();
+  if (attemptScoreObj.asmtSubmissionStartTime) {
+    if (typeof attemptScoreObj.asmtSubmissionStartTime === "number") {
+      startTimeStr = new Date(attemptScoreObj.asmtSubmissionStartTime * 1000).toISOString();
+    } else {
+      startTimeStr = new Date(attemptScoreObj.asmtSubmissionStartTime).toISOString();
+    }
+  }
+
+  return {
+    testId: attemptScoreObj.testId || "",
+    displayTitle: attemptScoreObj.displayTitle || title || "SAT Practice Test",
+    rosterEntryId: rosterEntryId,
+    asmtSubmissionStartTime: startTimeStr,
+    scores,
+    sections
+  };
+}
+
+async function exportPracticeTest(options, post) {
+  const { rosterEntryId, title } = options;
+  const auth = await getAuthOrThrow();
+
+  post({
+    type: "progress",
+    value: 0.1,
+    message: "Fetching scores summary..."
+  });
+
+  const exportFile = await buildPracticeTestJson(rosterEntryId, title, auth);
+
+  post({
+    type: "progress",
+    value: 0.8,
+    message: "Downloading JSON file..."
+  });
+
+  const jsonString = JSON.stringify(exportFile, null, 2);
+  const jsonBytes = new TextEncoder().encode(jsonString);
+  const base64Data = bytesToBase64(jsonBytes);
+
+  const cleanTitle = (exportFile.displayTitle).replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const filename = `sat-practice-test-${exportFile.testId || rosterEntryId}-${cleanTitle}.json`;
+
+  await chrome.downloads.download({
+    url: `data:application/json;base64,${base64Data}`,
+    filename,
+    conflictAction: "uniquify",
+    saveAs: true
+  });
+
+  post({
+    type: "done",
+    value: 1,
+    count: exportFile.sections.reduce((acc, sec) => acc + sec.questions.length, 0),
+    filename,
+    message: `Successfully exported practice test to ${filename}`
+  });
 }

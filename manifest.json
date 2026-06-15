@@ -30,7 +30,9 @@
   "content_scripts": [
     {
       "matches": [
-        "https://mypractice.collegeboard.org/questionbank/*"
+        "https://mypractice.collegeboard.org/questionbank/*",
+        "https://mypractice.collegeboard.org/details*",
+        "https://mypractice.collegeboard.org/dashboard*"
       ],
       "js": [
         "content.js"

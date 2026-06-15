@@ -38,11 +38,60 @@
       <span id="sectionLabel">No section detected yet</span>
     </div>
 
-    <a id="supportBtn" href="#support-section" style="display:block; text-align:center; font-size:13px; color:var(--text-primary); text-decoration:underline; text-underline-offset:3px; margin: 12px 0; font-weight: 500; opacity: 0.9;">❤️ Support the author</a>
+    <a id="supportBtn" href="#support-section" style="display:block; text-align:center; font-size:13px; color:var(--text-primary); text-decoration:underline; text-underline-offset:3px; margin: 12px 0; font-weight: 500; opacity: 0.9;">❤️ Support the project</a>
 
     <section id="notice" class="notice" hidden></section>
 
     <form id="exportForm">
+      <!-- Practice Test Exporter Card -->
+      <div class="card" id="practiceTestCard" style="display: none;">
+        <label class="toggle-label">
+          <div class="toggle-wrap">
+            <input id="practiceTestToggle" type="checkbox">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+          <div class="toggle-text">
+            <span class="toggle-title">Export Practice Test Data</span>
+            <small>Extract, process, and download practice test results as JSON</small>
+          </div>
+        </label>
+        <div id="practiceTestControls" style="margin-top: 12px; display: none;">
+          <label class="field-label" style="display: block; margin-bottom: 8px;">
+            <span class="label-text">Select Attempt</span>
+            <select id="attemptDropdown" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-input); color: var(--text-primary); font-family: inherit; font-size: 13px;">
+              <option value="">Loading attempts...</option>
+            </select>
+          </label>
+          <button id="exportPracticeBtn" type="button" class="btn btn-primary" style="width: 100%;">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 2v7.5M4 7l3 3 3-3M2.5 11.5h9"/></svg>
+            Export Practice Test
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <fieldset>
+          <legend>Assessment</legend>
+          <div class="checks">
+            <label class="check-label radio-label">
+              <input type="radio" name="assessment" value="99" checked>
+              <span class="custom-radio"></span>
+              <span class="check-text">SAT</span>
+            </label>
+            <label class="check-label radio-label">
+              <input type="radio" name="assessment" value="100">
+              <span class="custom-radio"></span>
+              <span class="check-text">PSAT/NMSQT & PSAT 10</span>
+            </label>
+            <label class="check-label radio-label">
+              <input type="radio" name="assessment" value="102">
+              <span class="custom-radio"></span>
+              <span class="check-text">PSAT 8/9</span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+
       <div class="card">
         <fieldset>
           <legend>Difficulty</legend>
@@ -145,7 +194,7 @@
     </section>
 
     <footer id="support-section" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); text-align: center; font-size: 13px; color: var(--text-secondary);">
-      <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-primary);">Support the author</p>
+      <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-primary);">Support the project</p>
       <a href="https://ko-fi.com/sevrony" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-bottom: 12px;">
         <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" style="height: 32px; border-radius: 4px;">
       </a>

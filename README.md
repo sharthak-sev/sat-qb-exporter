@@ -56,7 +56,7 @@ Chrome may show a notification while the extension is debugging a temporary prin
 
 ## Support This Project
 
-If you found this tool helpful for your SAT prep, consider supporting the author! ❤️
+If you found this tool helpful for your SAT prep, consider supporting the project! ❤️
 
 <img src="qr.svg" alt="Payment QR Code" width="220" style="border-radius: 8px; border: 1px solid #ddd; margin: 10px 0;"/>
 

@@ -771,3 +771,8 @@ form:has(button:disabled) .actions {
   user-select: all;
   cursor: copy;
 }
+
+select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
